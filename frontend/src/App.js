@@ -12,49 +12,49 @@ function App() {
 
   // Récupérer les données au chargement
   useEffect(() => {
+    const fetchInitialData = async () => {
+      try {
+        const [articlesRes, categoriesRes, statsRes] = await Promise.all([
+          axios.get('http://localhost:3001/api/articles'),
+          axios.get('http://localhost:3001/api/categories'),
+          axios.get('http://localhost:3001/api/stats')
+        ]);
+
+        setArticles(articlesRes.data);
+        setCategories(categoriesRes.data);
+        setStats(statsRes.data);
+        setLoading(false);
+      } catch (error) {
+        console.error('Erreur:', error);
+        setLoading(false);
+      }
+    };
+
     fetchInitialData();
   }, []);
 
   // Filtrer les articles quand la catégorie ou recherche change
   useEffect(() => {
+    const fetchArticles = async () => {
+      try {
+        const params = {};
+        if (selectedCategory !== 'Tous') params.category = selectedCategory;
+        if (searchTerm) params.search = searchTerm;
+
+        const response = await axios.get('http://localhost:3001/api/articles', { params });
+        setArticles(response.data);
+      } catch (error) {
+        console.error('Erreur:', error);
+      }
+    };
     fetchArticles();
   }, [selectedCategory, searchTerm]);
 
-  const fetchInitialData = async () => {
-    try {
-      const [articlesRes, categoriesRes, statsRes] = await Promise.all([
-        axios.get('http://localhost:3001/api/articles'),
-        axios.get('http://localhost:3001/api/categories'),
-        axios.get('http://localhost:3001/api/stats')
-      ]);
-      
-      setArticles(articlesRes.data);
-      setCategories(categoriesRes.data);
-      setStats(statsRes.data);
-      setLoading(false);
-    } catch (error) {
-      console.error('Erreur:', error);
-      setLoading(false);
-    }
-  };
-
-  const fetchArticles = async () => {
-    try {
-      const params = {};
-      if (selectedCategory !== 'Tous') params.category = selectedCategory;
-      if (searchTerm) params.search = searchTerm;
-      
-      const response = await axios.get('http://localhost:3001/api/articles', { params });
-      setArticles(response.data);
-    } catch (error) {
-      console.error('Erreur:', error);
-    }
-  };
 
   const handleLike = async (articleId) => {
     try {
       const response = await axios.post(`http://localhost:3001/api/articles/${articleId}/like`);
-      
+
       // Mettre à jour l'article localement
       setArticles(prevArticles =>
         prevArticles.map(article =>
@@ -91,7 +91,7 @@ function App() {
       <header className="header">
         <h1>🚀 Blog DevSecOps</h1>
         <p>Apprenez les meilleures pratiques de sécurité dans le DevOps</p>
-        
+
         <div className="stats">
           <div className="stat-item">
             <strong>{stats.totalArticles}</strong>
@@ -119,7 +119,7 @@ function App() {
             className="search-input"
           />
         </div>
-        
+
         <div className="categories">
           {categories.map(category => (
             <button
@@ -147,24 +147,24 @@ function App() {
                   <span className="category-tag">{article.category}</span>
                   <span className="read-time">⏱️ {article.readTime} min</span>
                 </div>
-                
+
                 <h2 className="article-title">{article.title}</h2>
-                
+
                 <p className="article-content">{article.content}</p>
-                
+
                 <div className="article-tags">
                   {article.tags.map(tag => (
                     <span key={tag} className="tag">#{tag}</span>
                   ))}
                 </div>
-                
+
                 <div className="article-footer">
                   <div className="article-meta">
                     <span className="author">👤 {article.author}</span>
                     <span className="date">📅 {formatDate(article.createdAt)}</span>
                   </div>
-                  
-                  <button 
+
+                  <button
                     className="like-btn"
                     onClick={() => handleLike(article.id)}
                     title="J'aime cet article"
