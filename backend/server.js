@@ -82,14 +82,14 @@ async function initDatabase() {
         tags TEXT[]
       )
     `);
-    
+
     // Insérer les données
     for (const article of articles) {
       await pool.query(`
         INSERT INTO articles (id, title, content, author, category, read_time, likes, created_at, tags)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-      `, [article.id, article.title, article.content, article.author, 
-          article.category, article.readTime, article.likes, article.createdAt, article.tags]);
+      `, [article.id, article.title, article.content, article.author,
+      article.category, article.readTime, article.likes, article.createdAt, article.tags]);
     }
     console.log('📝 Données initiales insérées dans PostgreSQL');
   } catch (error) {
@@ -107,7 +107,7 @@ async function initDatabase() {
         AND table_name = 'articles'
       )
     `);
-    
+
     if (!tableExists.rows[0].exists) {
       // Créer la table si elle n'existe pas
       await pool.query(`
@@ -127,18 +127,18 @@ async function initDatabase() {
     } else {
       console.log('✅ Table articles existe déjà');
     }
-    
+
     // Vérifier si des données existent déjà
     const { rows } = await pool.query('SELECT COUNT(*) FROM articles');
-    
+
     // Si aucune donnée, insérer les données de test
     if (parseInt(rows[0].count) === 0) {
       for (const article of articles) {
         await pool.query(`
           INSERT INTO articles (id, title, content, author, category, read_time, likes, created_at, tags)
           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-        `, [article.id, article.title, article.content, article.author, 
-            article.category, article.readTime, article.likes, article.createdAt, article.tags]);
+        `, [article.id, article.title, article.content, article.author,
+        article.category, article.readTime, article.likes, article.createdAt, article.tags]);
       }
       console.log('📝 Données initiales insérées dans PostgreSQL');
     }
@@ -157,13 +157,13 @@ app.get('/api/articles', async (req, res) => {
     const { category, search } = req.query;
     let query = 'SELECT * FROM articles';
     const params = [];
-    
+
     // Construire la requête avec filtres
     if (category && category !== 'Tous') {
       query += ' WHERE category = $1';
       params.push(category);
     }
-    
+
     if (search) {
       const searchPattern = `%${search.toLowerCase()}%`;
       if (params.length === 0) {
@@ -175,7 +175,7 @@ app.get('/api/articles', async (req, res) => {
       query += ` OR EXISTS (SELECT 1 FROM unnest(tags) tag WHERE LOWER(tag) LIKE $${params.length + 1}))`;
       params.push(searchPattern);
     }
-    
+
     const { rows } = await pool.query(query, params);
     res.json(rows);
   } catch (error) {
@@ -189,11 +189,11 @@ app.get('/api/articles/:id', async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     const { rows } = await pool.query('SELECT * FROM articles WHERE id = $1', [id]);
-    
+
     if (rows.length === 0) {
       return res.status(404).json({ error: 'Article non trouvé' });
     }
-    
+
     res.json(rows[0]);
   } catch (error) {
     console.error('Erreur lors de la récupération de l\'article:', error);
@@ -209,11 +209,11 @@ app.post('/api/articles/:id/like', async (req, res) => {
       'UPDATE articles SET likes = likes + 1 WHERE id = $1 RETURNING likes',
       [id]
     );
-    
+
     if (rows.length === 0) {
       return res.status(404).json({ error: 'Article non trouvé' });
     }
-    
+
     res.json({ likes: rows[0].likes });
   } catch (error) {
     console.error('Erreur lors du like:', error);
@@ -240,18 +240,59 @@ app.get('/api/stats', async (req, res) => {
     const totalLikes = await pool.query('SELECT SUM(likes) FROM articles');
     const categories = await pool.query('SELECT COUNT(DISTINCT category) FROM articles');
     const avgReadTime = await pool.query('SELECT AVG(read_time) FROM articles');
-    
+
     const stats = {
       totalArticles: parseInt(totalArticles.rows[0].count),
       totalLikes: parseInt(totalLikes.rows[0].sum) || 0,
       categories: parseInt(categories.rows[0].count),
       averageReadTime: Math.round(parseFloat(avgReadTime.rows[0].avg) || 0)
     };
-    
+
     res.json(stats);
   } catch (error) {
     console.error('Erreur lors de la récupération des statistiques:', error);
     res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+// Dans ton server.js (à ajouter avec tes autres routes)
+
+// Endpoint de santé simple
+app.get('/health', (req, res) => {
+  res.status(200).json({
+    status: 'OK',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    service: 'blog-backend'
+  });
+});
+
+// Endpoint de santé avancé (avec vérification DB)
+app.get('/health/detailed', async (req, res) => {
+  try {
+    // Vérifier la connexion à la base de données
+    // Remplace cette partie par ta méthode de connexion DB
+    // Exemple avec PostgreSQL :
+    // await pool.query('SELECT 1');
+
+    res.status(200).json({
+      status: 'OK',
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      service: 'blog-backend',
+      database: 'connected',
+      memory: {
+        used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024) + 'MB',
+        total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024) + 'MB'
+      }
+    });
+  } catch (error) {
+    res.status(503).json({
+      status: 'ERROR',
+      timestamp: new Date().toISOString(),
+      service: 'blog-backend',
+      database: 'disconnected',
+      error: error.message
+    });
   }
 });
 
